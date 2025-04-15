@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Snake Game</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #111;
+      position: relative;
+      flex-direction: column;
+    }
+
+    #start-game {
+      position: absolute;
+      z-index: 10;
+      padding: 15px 30px;
+      background: #0f0;
+      color: black;
+      border: none;
+      border-radius: 8px;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    #start-game:hover {
+      background: #0c0;
+    }
+
+    #game-container {
+      position: relative;
+    }
+
+    canvas {
+      background-color: #222;
+      border: 2px solid #0f0;
+    }
+
+    #game-over {
+      position: absolute;
+      top: 35%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 20px;
+      text-align: center;
+      display: none;
+      border-radius: 8px;
+    }
+
+    #play-again {
+      margin-top: 10px;
+      padding: 10px 20px;
+      background: #0f0;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #play-again:hover {
+      background: #0c0;
+    }
+
+    #score-board {
+      color: white;
+      position: absolute;
+      top: -40px;
+      left: 0;
+      font-size: 18px;
+    }
+
+    #external-link {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      text-decoration: none;
+      font-size: 16px;
+    }
+
+    #external-link:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+
+  <button id="start-game">Start Game</button>
+
+  <div id="game-container">
+    <div id="score-board">Score: 0 | High Score: 0</div>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <div id="game-over">
+      <p id="game-over-text">Game Over!</p>
+      <button id="play-again">Play Again</button>
+    </div>
+  </div>
+
+  <a href="scratch.html" id="external-link">Go Home</a>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const box = 20;
+    const rows = canvas.height / box;
+    const cols = canvas.width / box;
+    const scoreBoard = document.getElementById("score-board");
+    const gameOverText = document.getElementById("game-over-text");
+    const startGameBtn = document.getElementById("start-game");
+
+    const apple = new Image();
+    apple.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><text x='0' y='15' font-size='20'>🍎</text></svg>`);
+
+    let snake;
+    let fruit;
+    let direction;
+    let game;
+    let score = 0;
+    let highScore = 0;
+    let gameStarted = false;
+
+    function startGame() {
+      snake = [{ x: 9 * box, y: 9 * box }];
+      direction = "RIGHT";
+      placeFruit();
+      document.getElementById("game-over").style.display = "none";
+      score = 0;
+      updateScore();
+      clearInterval(game);
+      game = setInterval(draw, 100);
+
+      if (!gameStarted) {
+        gameStarted = true;
+        startGameBtn.style.display = "none"; // Hide forever after first use
+      }
+    }
+
+    function updateScore() {
+      scoreBoard.textContent = `Score: ${score} | High Score: ${highScore}`;
+    }
+
+    function placeFruit() {
+      fruit = {
+        x: Math.floor(Math.random() * cols) * box,
+        y: Math.floor(Math.random() * rows) * box
+      };
+    }
+
+    document.addEventListener("keydown", event => {
+      const key = event.key;
+      if (key === "ArrowLeft" && direction !== "RIGHT") direction = "LEFT";
+      else if (key === "ArrowUp" && direction !== "DOWN") direction = "UP";
+      else if (key === "ArrowRight" && direction !== "LEFT") direction = "RIGHT";
+      else if (key === "ArrowDown" && direction !== "UP") direction = "DOWN";
+    });
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(apple, fruit.x, fruit.y, box, box);
+
+      let headX = snake[0].x;
+      let headY = snake[0].y;
+
+      if (direction === "LEFT") headX -= box;
+      if (direction === "UP") headY -= box;
+      if (direction === "RIGHT") headX += box;
+      if (direction === "DOWN") headY += box;
+
+      if (
+        headX < 0 || headY < 0 ||
+        headX >= canvas.width || headY >= canvas.height ||
+        collision({ x: headX, y: headY }, snake)
+      ) {
+        clearInterval(game);
+        if (score > highScore) {
+          highScore = score;
+          gameOverText.innerHTML = "Game Over!<br>Congrats! You made a new High Score!";
+        } else {
+          gameOverText.textContent = "Game Over!";
+        }
+        document.getElementById("game-over").style.display = "block";
+        return;
+      }
+
+      const newHead = { x: headX, y: headY };
+
+      if (headX === fruit.x && headY === fruit.y) {
+        score++;
+        updateScore();
+        placeFruit();
+      } else {
+        snake.pop();
+      }
+
+      snake.unshift(newHead);
+
+      ctx.fillStyle = "lime";
+      for (let i = 0; i < snake.length; i++) {
+        ctx.fillRect(snake[i].x, snake[i].y, box, box);
+        if (i === 0) {
+          ctx.fillStyle = "black";
+          const eyeSize = 3;
+          let eye1 = {}, eye2 = {};
+          if (direction === "RIGHT" || direction === "LEFT") {
+            eye1 = { x: snake[i].x + 4, y: snake[i].y + 4 };
+            eye2 = { x: snake[i].x + 4, y: snake[i].y + box - 7 };
+          } else {
+            eye1 = { x: snake[i].x + 4, y: snake[i].y + 4 };
+            eye2 = { x: snake[i].x + box - 7, y: snake[i].y + 4 };
+          }
+          ctx.beginPath();
+          ctx.arc(eye1.x, eye1.y, eyeSize, 0, Math.PI * 2);
+          ctx.arc(eye2.x, eye2.y, eyeSize, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "lime";
+        }
+      }
+    }
+
+    function collision(head, array) {
+      return array.some(segment => segment.x === head.x && segment.y === head.y);
+    }
+
+    startGameBtn.addEventListener("click", startGame);
+    document.getElementById("play-again").addEventListener("click", startGame);
+  </script>
+
+</body>
+</html>
